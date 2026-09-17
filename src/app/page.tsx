@@ -1,3 +1,4 @@
+import { hasValidSession } from "@/lib/auth/session";
 import { getRotaProvider } from "@/lib/rota";
 import { resolveRotaAssignments, type ResolvedAssignment } from "@/lib/rota/assignment";
 import { getMessageLogStore } from "@/lib/message-log";
@@ -9,6 +10,8 @@ import {
   formatFriendlySundayDate,
 } from "@/lib/london-time";
 import { AdminActionCard } from "@/components/admin-action-card";
+import { LoginForm } from "@/components/login-form";
+import { LogoutButton } from "@/components/logout-button";
 import {
   testSheetsConnectivity,
   previewReminder,
@@ -55,6 +58,10 @@ interface RecentMessage {
 }
 
 export default async function DashboardPage() {
+  if (!(await hasValidSession())) {
+    return <LoginForm />;
+  }
+
   const london = getLondonNow();
   const firstUpcomingSunday = nextSunday(london.date, { strictlyAfter: false });
   const upcomingDates = Array.from({ length: UPCOMING_COUNT }, (_, i) =>
@@ -123,12 +130,15 @@ export default async function DashboardPage() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="text-2xl font-semibold text-slate-900">Dashboard</h2>
-        <p className="mt-1 text-sm text-slate-600">
-          Sunday advance notices send at 19:00 and Friday reminders at 18:00,
-          both Europe/London time.
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-semibold text-slate-900">Dashboard</h2>
+          <p className="mt-1 text-sm text-slate-600">
+            Sunday advance notices send at 19:00 and Friday reminders at
+            18:00, both Europe/London time.
+          </p>
+        </div>
+        <LogoutButton />
       </div>
 
       <section className="rounded-lg border border-slate-200 bg-white p-5">

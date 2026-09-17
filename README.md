@@ -157,14 +157,34 @@ See `.env.example` for the full list with placeholders. Summary:
 | `TWILIO_SMS_FROM_NUMBER` | Twilio SMS sender number |
 | `ADMIN_PHONE_NUMBER` | Your number, to receive the admin notification |
 | `CRON_SECRET` | Shared secret that authorises `/api/reminders/run` |
+| `ADMIN_DASHBOARD_PASSWORD` | Password required to log into the dashboard |
 
 That's the complete list -- there is no database to configure. Never commit
 `.env.local`; `.env.example` contains placeholders only.
 
-## 5. Testing the workflow (no need to wait for Sunday/Friday)
+## 5. Dashboard login
 
-Everything below is available as a button on the dashboard, under **Test
-controls**:
+The dashboard (`/`) has controls that send real SMS, so it's protected by a
+single shared password -- set `ADMIN_DASHBOARD_PASSWORD` to something long
+and random (e.g. `openssl rand -hex 32`).
+
+Visiting the dashboard while logged out shows a password prompt. On a
+correct password, the app sets an HTTP-only session cookie (good for 30
+days) and shows the dashboard; a **Log out** link in the top-right clears
+it. There's no separate user database -- this is one shared password for
+whoever administers the rota, appropriate for a small single-admin app. See
+"Architecture notes" below for how the session cookie is built.
+
+This only gates the dashboard UI and its server actions (test controls,
+previews, connectivity check, etc.) -- it's independent of, and does not
+replace, `CRON_SECRET` on `/api/reminders/run` (see section 7), which must
+keep working for Vercel Cron whether or not anyone is logged into the
+dashboard.
+
+## 6. Testing the workflow (no need to wait for Sunday/Friday)
+
+Log into the dashboard first (see previous section). Everything below is
+then available as a button, under **Test controls**:
 
 1. **Test Google Sheets connectivity** -- confirms the service account can
    read both worksheets and reports row counts.
@@ -197,7 +217,7 @@ curl -X POST https://your-deployment.vercel.app/api/reminders/run \
 
 Locally: `curl -X POST http://localhost:3000/api/reminders/run -H "Authorization: Bearer $CRON_SECRET"`.
 
-## 6. Deploying to Vercel
+## 7. Deploying to Vercel
 
 1. Push this repo to GitHub/GitLab/Bitbucket and import it in Vercel, or run
    `vercel` from the project root.
@@ -206,7 +226,7 @@ Locally: `curl -X POST http://localhost:3000/api/reminders/run -H "Authorization
    want preview deployments to work too).
 3. Deploy.
 
-## 7. Configuring scheduled execution
+## 8. Configuring scheduled execution
 
 `vercel.json` defines two crons, both on the **Hobby plan-compatible**
 pattern of firing at most once a week each (Hobby caps cron frequency at
@@ -282,7 +302,17 @@ reminder from ever being sent twice.
   whether the person's own reminder succeeded). Shared by the scheduled
   endpoint and the dashboard's test-trigger buttons.
 - `src/lib/actions/admin.ts` -- server actions backing the dashboard's test
-  controls.
+  controls. Every one starts with `await requireAdminSession()` so it can't
+  be invoked directly (e.g. with curl) by someone who isn't logged in, even
+  though it never renders as UI for them.
+- `src/lib/auth/session.ts` -- the dashboard's login/session logic.
+  `ADMIN_DASHBOARD_PASSWORD` is compared with a constant-time check and is
+  never stored; the session cookie holds an expiry timestamp plus an HMAC
+  of it keyed by that same password (`crypto.createHmac`), so the cookie
+  proves the password was known at login without containing it, can't be
+  forged without knowing the password, and is invalidated automatically if
+  the password is ever changed. `src/lib/actions/auth.ts` exposes this as
+  the `login`/`logout` server actions.
 
 Errors are caught at each boundary (Sheets access, sheet/person matching,
 phone normalisation, Twilio send) so one bad rota row or an unreachable

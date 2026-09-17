@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAdminSession } from "@/lib/auth/session";
 import { getRotaProvider } from "@/lib/rota";
 import { resolveRotaAssignment, type ResolvedAssignment } from "@/lib/rota/assignment";
 import { getMessagingProvider } from "@/lib/messaging";
@@ -68,6 +69,7 @@ function describeAdminOutcome(outcome: AdminNotificationOutcome): string {
 }
 
 export async function testSheetsConnectivity(): Promise<string> {
+  await requireAdminSession();
   const provider = getRotaProvider();
   const [rota, team] = await Promise.all([
     provider.getRota(),
@@ -79,6 +81,7 @@ export async function testSheetsConnectivity(): Promise<string> {
 export async function previewReminder(
   reminderType: ProductionReminderType
 ): Promise<string> {
+  await requireAdminSession();
   const provider = getRotaProvider();
   const dutyDate = computeTargetDate(reminderType);
   const assignment = await resolveRotaAssignment(provider, dutyDate);
@@ -89,6 +92,7 @@ export async function previewReminder(
  *  (ADMIN_PHONE_NUMBER), to verify Twilio SMS end-to-end without
  *  needing to type a number in each time. */
 export async function sendTestSms(): Promise<string> {
+  await requireAdminSession();
   const adminNumberRaw = process.env.ADMIN_PHONE_NUMBER;
   if (!adminNumberRaw) {
     return "Not sent: the admin phone number is not configured.";
@@ -129,6 +133,7 @@ export async function sendTestSms(): Promise<string> {
  *  both marked as test sends so neither counts towards production
  *  duplicate-protection. */
 export async function triggerTestSundayAdvance(): Promise<string> {
+  await requireAdminSession();
   const dutyDate = computeTargetDate("SUNDAY_ADVANCE");
   const { reminder, adminNotification } = await processSundayAdvance({
     dutyDate,
@@ -142,6 +147,7 @@ export async function triggerTestSundayAdvance(): Promise<string> {
 }
 
 export async function triggerTestFridayReminder(): Promise<string> {
+  await requireAdminSession();
   const dutyDate = computeTargetDate("FRIDAY_REMINDER");
   const outcome = await processReminder({
     reminderType: "FRIDAY_REMINDER",
@@ -153,6 +159,7 @@ export async function triggerTestFridayReminder(): Promise<string> {
 }
 
 export async function runScheduledCheckNow(): Promise<string> {
+  await requireAdminSession();
   const { ran, results, adminNotifications } = await runScheduledReminders(
     new Date()
   );
