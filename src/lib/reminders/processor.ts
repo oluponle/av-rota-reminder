@@ -56,25 +56,33 @@ export interface AdminNotificationOutcome {
   errorMessage?: string;
 }
 
-// Twilio Content template SIDs (WhatsApp Utility templates), one per
-// person-facing reminder type. "1" = first name, "2" = friendly duty date,
-// matching the approved template copy exactly -- see README.
-const REMINDER_CONTENT_SID_ENV: Record<ProductionReminderType, string> = {
-  SUNDAY_ADVANCE: "TWILIO_SUNDAY_CONTENT_SID",
-  FRIDAY_REMINDER: "TWILIO_FRIDAY_CONTENT_SID",
-};
-
-function getRequiredEnv(name: string): string {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing ${name} environment variable.`);
-  }
-  return value;
-}
-
 function firstNameOf(fullName: string): string {
   const trimmed = fullName.trim();
   return trimmed.split(/\s+/)[0] || trimmed;
+}
+
+function buildReminderMessage(
+  reminderType: ProductionReminderType,
+  firstName: string,
+  dutyDateISO: string,
+  isTest: boolean
+): string {
+  const dateStr = formatFriendlySundayDate(dutyDateISO);
+  const core =
+    reminderType === "SUNDAY_ADVANCE"
+      ? `Hi ${firstName}, just a heads-up that you're on the Streaming Team rota next Sunday, ${dateStr}.`
+      : `Hi ${firstName}, just a reminder that you're on the Streaming Team rota this Sunday, ${dateStr}. See you Sunday!`;
+  return isTest ? `[TEST] ${core}` : core;
+}
+
+function buildAdminMessage(
+  firstName: string,
+  dutyDateISO: string,
+  isTest: boolean
+): string {
+  const dateStr = formatFriendlySundayDate(dutyDateISO);
+  const core = `Streaming Team rota: ${firstName} is on duty next Sunday, ${dateStr}.`;
+  return isTest ? `[TEST] ${core}` : core;
 }
 
 /**
@@ -95,8 +103,7 @@ export function computeTargetDate(
 
 /**
  * Resolves the recipient from the live Google Sheet and sends (or records
- * why it couldn't send) one reminder, using the approved WhatsApp Content
- * template for that reminder type.
+ * why it couldn't send) one reminder via SMS.
  *
  * Idempotency: MessageLog is read for an existing SENT row matching
  * (reminderType, dutyDate, person) among *production* rows (isTest=false)
@@ -159,19 +166,11 @@ export async function processReminder(params: {
     }
   }
 
-  const contentSid = getRequiredEnv(REMINDER_CONTENT_SID_ENV[reminderType]);
   const firstName = firstNameOf(assignment.personName);
-  const variables = {
-    "1": isTest ? `[TEST] ${firstName}` : firstName,
-    "2": formatFriendlySundayDate(dutyDate),
-  };
+  const body = buildReminderMessage(reminderType, firstName, dutyDate, isTest);
 
   const messaging = getMessagingProvider();
-  const sendResult = await messaging.sendWhatsAppTemplate(
-    assignment.phoneE164,
-    contentSid,
-    variables
-  );
+  const sendResult = await messaging.sendSMS(assignment.phoneE164, body);
 
   await messageLog.appendEntry({
     dutyDate,
@@ -198,12 +197,11 @@ export async function processReminder(params: {
 }
 
 /**
- * Sends the admin "who's on duty next Sunday" notification via the
- * `adminnotification` Content template. Deliberately tolerant of missing
- * admin-specific config (ADMIN_WHATSAPP_NUMBER / TWILIO_ADMIN_CONTENT_SID)
- * -- returns "blocked" rather than throwing, so a broken admin notification
- * never prevents the team member's own reminder (sent separately, first)
- * from going out.
+ * Sends the admin "who's on duty next Sunday" notification via SMS.
+ * Deliberately tolerant of missing/invalid admin config
+ * (ADMIN_WHATSAPP_NUMBER) -- returns "blocked" rather than throwing, so a
+ * broken admin notification never prevents the team member's own reminder
+ * (sent separately, first) from going out.
  *
  * Has its own duplicate-protection key (reminderType "ADMIN", dutyDate,
  * person) so retrying the Sunday job never re-notifies the admin about a
@@ -256,31 +254,11 @@ export async function sendAdminNotification(params: {
     }
   }
 
-  let contentSid: string;
-  try {
-    contentSid = getRequiredEnv("TWILIO_ADMIN_CONTENT_SID");
-  } catch (error) {
-    return {
-      dutyDate,
-      personName,
-      isTest,
-      status: "blocked",
-      errorMessage: error instanceof Error ? error.message : String(error),
-    };
-  }
-
   const firstName = firstNameOf(personName);
-  const variables = {
-    "1": isTest ? `[TEST] ${firstName}` : firstName,
-    "2": formatFriendlySundayDate(dutyDate),
-  };
+  const body = buildAdminMessage(firstName, dutyDate, isTest);
 
   const messaging = getMessagingProvider();
-  const sendResult = await messaging.sendWhatsAppTemplate(
-    normalizedAdminNumber.e164,
-    contentSid,
-    variables
-  );
+  const sendResult = await messaging.sendSMS(normalizedAdminNumber.e164, body);
 
   await messageLog.appendEntry({
     dutyDate,

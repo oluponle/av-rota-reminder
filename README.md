@@ -1,7 +1,7 @@
 # AV Rota Reminder
 
-Sends automatic WhatsApp reminders to the church Streaming Team based on a
-rota that lives entirely in Google Sheets.
+Sends automatic SMS reminders to the church Streaming Team based on a rota
+that lives entirely in Google Sheets.
 
 **Architecture:**
 
@@ -14,7 +14,7 @@ rota that lives entirely in Google Sheets.
     the app ever writes to).
 - **Next.js on Vercel** is the application, reminder processor, and
   scheduled endpoint.
-- **Twilio** sends the WhatsApp messages, behind a small `MessagingProvider`
+- **Twilio** sends the SMS messages, behind a small `MessagingProvider`
   abstraction.
 
 There is no database, no login, and no in-app editing of the rota or team --
@@ -26,10 +26,8 @@ reminder** (sent the Friday before, ~18:00 Europe/London, for the coming
 Sunday). On the Sunday run, the admin also gets an **admin notification**
 naming who's on duty next Sunday.
 
-All three of these are sent as Twilio WhatsApp **Content templates**
-(ContentSid + ContentVariables), not free-form messages -- Twilio requires
-an approved template for business-initiated WhatsApp messages. See
-"Twilio Content templates" below.
+All three are sent as plain SMS via the Twilio Messages API (`From`/`To`/
+`Body`) -- no WhatsApp, no message templates.
 
 ## 1. Run locally
 
@@ -77,7 +75,7 @@ whether that worksheet exists and creates it, with this header row, if not:
 
 - `ReminderType`: `SUNDAY_ADVANCE`, `FRIDAY_REMINDER`, `ADMIN` (the admin
   notification sent alongside a `SUNDAY_ADVANCE` run), or `TEST` (the
-  standalone "send a test WhatsApp" control, not tied to a duty).
+  standalone "send a test SMS" control, not tied to a duty).
 - `Status`: `SENT` or `FAILED`.
 - `IsTest`: `TRUE` for anything triggered from the dashboard's test
   controls, `FALSE` for real scheduled sends. Test rows are logged for
@@ -131,49 +129,20 @@ Set that as `GOOGLE_SPREADSHEET_ID`.
 1. Create a Twilio account: https://www.twilio.com/try-twilio.
 2. From the Console dashboard, copy your **Account SID** and **Auth Token**
    -> `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN`.
+3. Get an SMS-capable Twilio phone number (Console -> Phone Numbers -> Buy a
+   number, or use a trial number) and set it as `TWILIO_SMS_FROM_NUMBER`
+   (E.164, e.g. `+14155551234`).
+4. Set `ADMIN_WHATSAPP_NUMBER` -- your own number, to receive the Sunday
+   admin notification and the dashboard's "Send a test SMS" control. It
+   accepts the same UK formats as the Team sheet (`07...`, `7...`, `44...`,
+   `+44...`). (The env var name is kept from an earlier WhatsApp version of
+   this app -- it's just "the admin's phone number" now.)
 
-### 3.1 WhatsApp Sandbox (for development/testing)
-
-1. Console -> Messaging -> Try it out -> Send a WhatsApp message.
-2. Follow the instructions to join the sandbox (send the given code to the
-   given number from your own WhatsApp).
-3. Set the sandbox number as `TWILIO_WHATSAPP_FROM_NUMBER` (E.164, e.g.
-   `+14155238886`, no `whatsapp:` prefix -- the app adds that).
-4. Anyone you want to send test messages to must also join the sandbox from
-   their own phone first (Twilio sandboxes require opt-in).
-
-For production, apply for WhatsApp access on a real Twilio number instead of
-the sandbox (Twilio's WhatsApp Business onboarding) and use that number as
-`TWILIO_WHATSAPP_FROM_NUMBER`.
-
-### 3.2 Twilio Content templates
-
-Twilio requires scheduled/business-initiated WhatsApp messages to use an
-approved **Content template** (ContentSid + ContentVariables) rather than a
-free-form `Body`. Create these three WhatsApp **Utility** templates in
-Console -> Messaging -> Content Template Builder (or via the Content API),
-get each one **approved** by WhatsApp, then copy each template's **Content
-SID** (starts `HX...`) into `.env.local`:
-
-| Template name | Body | Env var |
-| --- | --- | --- |
-| `sundayreminder` | `Hi {{1}}, just a heads-up that you're on the Streaming Team rota next Sunday, {{2}}.` | `TWILIO_SUNDAY_CONTENT_SID` |
-| `fridayreminder` | `Hi {{1}}, just a reminder that you're on the Streaming Team rota this Sunday, {{2}}. See you Sunday!` | `TWILIO_FRIDAY_CONTENT_SID` |
-| `adminnotification` | `Streaming Team rota: {{1}} is on duty next Sunday, {{2}}.` | `TWILIO_ADMIN_CONTENT_SID` |
-
-`{{1}}` is always the person's first name and `{{2}}` the friendly duty date
-(e.g. "Sunday 20 September"). Test sends prefix `{{1}}` with `[TEST] ` (the
-only thing Twilio lets you vary) so a test message is still visibly marked
-as a test in WhatsApp itself, on top of `IsTest = TRUE` in `MessageLog`.
-
-Also set `ADMIN_WHATSAPP_NUMBER` -- your own number, to receive the
-`adminnotification` message. It accepts the same UK formats as the Team
-sheet (`07...`, `7...`, `44...`, `+44...`).
-
-The free-form `sendWhatsApp`/`sendSMS` methods still exist in
-`MessagingProvider` and are only used by the dashboard's standalone
-"Send a test WhatsApp" connectivity check, which isn't a scheduled/template
-message.
+That's it -- messages are sent as plain SMS via the Twilio Messages API
+(`From`/`To`/`Body`), so there's no sandbox to join, no message templates to
+create or get approved, and no recipient opt-in step. A Twilio trial
+account can usually only text phone numbers you've verified in the Console;
+upgrade the account for production use with unverified numbers.
 
 ## 4. Required environment variables
 
@@ -186,10 +155,7 @@ See `.env.example` for the full list with placeholders. Summary:
 | `GOOGLE_SERVICE_ACCOUNT_PRIVATE_KEY` | Service account private key |
 | `TWILIO_ACCOUNT_SID` | Twilio account SID |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
-| `TWILIO_WHATSAPP_FROM_NUMBER` | Twilio WhatsApp sender number |
-| `TWILIO_SUNDAY_CONTENT_SID` | Content SID of the `sundayreminder` template |
-| `TWILIO_FRIDAY_CONTENT_SID` | Content SID of the `fridayreminder` template |
-| `TWILIO_ADMIN_CONTENT_SID` | Content SID of the `adminnotification` template |
+| `TWILIO_SMS_FROM_NUMBER` | Twilio SMS sender number |
 | `ADMIN_WHATSAPP_NUMBER` | Your number, to receive the admin notification |
 | `CRON_SECRET` | Shared secret that authorises `/api/reminders/run` |
 
@@ -207,14 +173,14 @@ controls**:
    who would receive that reminder right now (computed from today's date),
    including any phone-number or sheet-matching problems, without sending
    anything.
-3. **Send a test WhatsApp** -- type any UK number and send a fixed test
-   message, to check Twilio/WhatsApp end-to-end independent of the rota.
+3. **Send a test SMS** -- sends a fixed test message to `ADMIN_WHATSAPP_NUMBER`,
+   to check Twilio SMS end-to-end independent of the rota.
 4. **Trigger test Sunday advance** / **Trigger test Friday reminder** --
-   sends a real WhatsApp template message (first name prefixed `[TEST]`) to
-   whoever the rota currently resolves for that reminder. The Sunday one
-   also sends a test `adminnotification` to `ADMIN_WHATSAPP_NUMBER`. These
-   are logged with `IsTest = TRUE` and **never** block or duplicate the
-   real scheduled send/notification.
+   sends a real SMS (whole message prefixed `[TEST]`) to whoever the rota
+   currently resolves for that reminder. The Sunday one also sends a test
+   admin notification to `ADMIN_WHATSAPP_NUMBER`. These are logged with
+   `IsTest = TRUE` and **never** block or duplicate the real scheduled
+   send/notification.
 5. **Run scheduled check now** -- runs the exact production logic
    (`runScheduledReminders`) immediately; it only actually sends if it's
    really Sunday 19:00 or Friday 18:00 Europe/London right now, so it's safe
@@ -305,16 +271,14 @@ reminder from ever being sent twice.
 - `src/lib/phone.ts` -- UK phone number normalisation to E.164.
 - `src/lib/london-time.ts` -- Europe/London-aware date helpers (no
   hard-coded UTC offsets; DST handled via `Intl`).
-- `src/lib/messaging` -- `MessagingProvider` interface + `TwilioMessagingProvider`.
-  `sendWhatsAppTemplate` (ContentSid + ContentVariables) is what the
-  reminder processor uses for all business-initiated sends; `sendWhatsApp`
-  (free-form `Body`) and `sendSMS` remain for the standalone test-send
-  control. Swapping providers means changing `src/lib/messaging/index.ts`
-  only.
+- `src/lib/messaging` -- `MessagingProvider` interface (just `sendSMS`) +
+  `TwilioMessagingProvider`, a thin wrapper around the Twilio Messages API
+  (`From`/`To`/`Body`). Swapping providers means changing
+  `src/lib/messaging/index.ts` only.
 - `src/lib/reminders/processor.ts` -- resolves the recipient, checks
-  `MessageLog` for an existing successful send, sends via the appropriate
-  Content template, and appends the outcome. `processSundayAdvance` composes
-  the person's `sundayreminder` send with the separate `adminnotification`
+  `MessageLog` for an existing successful send, builds the message body,
+  sends via SMS, and appends the outcome. `processSundayAdvance` composes
+  the person's `SUNDAY_ADVANCE` send with the separate admin-notification
   send (its own MessageLog-keyed duplicate protection, independent of
   whether the person's own reminder succeeded). Shared by the scheduled
   endpoint and the dashboard's test-trigger buttons.

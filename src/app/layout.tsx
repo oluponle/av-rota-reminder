@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AV Rota Reminder",
-  description: "WhatsApp duty reminders for the Streaming Team",
+  description: "SMS duty reminders for the Streaming Team",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

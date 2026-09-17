@@ -85,18 +85,22 @@ export async function previewReminder(
   return describePreview(reminderType, assignment);
 }
 
-export async function sendTestWhatsAppMessage(
-  formData: FormData
-): Promise<string> {
-  const phoneRaw = String(formData.get("phone") ?? "");
-  const normalized = normalizeUkPhoneNumber(phoneRaw);
+/** Sends a fixed test SMS to the configured admin number
+ *  (ADMIN_WHATSAPP_NUMBER), to verify Twilio SMS end-to-end without
+ *  needing to type a number in each time. */
+export async function sendTestSms(): Promise<string> {
+  const adminNumberRaw = process.env.ADMIN_WHATSAPP_NUMBER;
+  if (!adminNumberRaw) {
+    return "Not sent: ADMIN_WHATSAPP_NUMBER is not configured.";
+  }
 
+  const normalized = normalizeUkPhoneNumber(adminNumberRaw);
   if (!normalized.ok) {
     return `Not sent: ${normalized.error}`;
   }
 
   const messaging = getMessagingProvider();
-  const result = await messaging.sendWhatsApp(
+  const result = await messaging.sendSMS(
     normalized.e164,
     "[TEST] This is a test message from AV Rota Reminder."
   );

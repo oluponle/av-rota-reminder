@@ -16,19 +16,17 @@ export function getMessagingProvider(): MessagingProvider {
 
   const accountSid = process.env.TWILIO_ACCOUNT_SID;
   const authToken = process.env.TWILIO_AUTH_TOKEN;
-  const whatsAppFromNumber = process.env.TWILIO_WHATSAPP_FROM_NUMBER;
   const smsFromNumber = process.env.TWILIO_SMS_FROM_NUMBER;
 
-  if (!accountSid || !authToken || !whatsAppFromNumber) {
+  if (!accountSid || !authToken || !smsFromNumber) {
     throw new Error(
-      "Missing Twilio environment variables (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_WHATSAPP_FROM_NUMBER)."
+      "Missing Twilio environment variables (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_SMS_FROM_NUMBER)."
     );
   }
 
   provider = new TwilioMessagingProvider({
     accountSid,
     authToken,
-    whatsAppFromNumber,
     smsFromNumber,
   });
 

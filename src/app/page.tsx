@@ -9,10 +9,10 @@ import {
   formatFriendlySundayDate,
 } from "@/lib/london-time";
 import { AdminActionCard } from "@/components/admin-action-card";
-import { TestWhatsAppForm } from "@/components/test-whatsapp-form";
 import {
   testSheetsConnectivity,
   previewReminder,
+  sendTestSms,
   triggerTestSundayAdvance,
   triggerTestFridayReminder,
   runScheduledCheckNow,
@@ -284,13 +284,13 @@ export default async function DashboardPage() {
           />
           <AdminActionCard
             title="Trigger test Sunday advance"
-            description="Sends a real WhatsApp (sundayreminder + adminnotification templates) marked [TEST]. Does not block real reminders."
+            description="Sends a real SMS (person + admin notification) marked [TEST]. Does not block real reminders."
             buttonLabel="Send test"
             action={triggerTestSundayAdvance}
           />
           <AdminActionCard
             title="Trigger test Friday reminder"
-            description="Sends a real WhatsApp (fridayreminder template) marked [TEST]. Does not block the real reminder."
+            description="Sends a real SMS marked [TEST]. Does not block the real reminder."
             buttonLabel="Send test"
             action={triggerTestFridayReminder}
           />
@@ -300,8 +300,13 @@ export default async function DashboardPage() {
             buttonLabel="Run check"
             action={runScheduledCheckNow}
           />
+          <AdminActionCard
+            title="Send a test SMS"
+            description="Sends a fixed test SMS to the configured admin number (ADMIN_WHATSAPP_NUMBER), to verify Twilio SMS end-to-end."
+            buttonLabel="Send test"
+            action={sendTestSms}
+          />
         </div>
-        <TestWhatsAppForm />
       </section>
     </div>
   );
