@@ -86,12 +86,12 @@ export async function previewReminder(
 }
 
 /** Sends a fixed test SMS to the configured admin number
- *  (ADMIN_WHATSAPP_NUMBER), to verify Twilio SMS end-to-end without
+ *  (ADMIN_PHONE_NUMBER), to verify Twilio SMS end-to-end without
  *  needing to type a number in each time. */
 export async function sendTestSms(): Promise<string> {
-  const adminNumberRaw = process.env.ADMIN_WHATSAPP_NUMBER;
+  const adminNumberRaw = process.env.ADMIN_PHONE_NUMBER;
   if (!adminNumberRaw) {
-    return "Not sent: ADMIN_WHATSAPP_NUMBER is not configured.";
+    return "Not sent: the admin phone number is not configured.";
   }
 
   const normalized = normalizeUkPhoneNumber(adminNumberRaw);

@@ -132,11 +132,10 @@ Set that as `GOOGLE_SPREADSHEET_ID`.
 3. Get an SMS-capable Twilio phone number (Console -> Phone Numbers -> Buy a
    number, or use a trial number) and set it as `TWILIO_SMS_FROM_NUMBER`
    (E.164, e.g. `+14155551234`).
-4. Set `ADMIN_WHATSAPP_NUMBER` -- your own number, to receive the Sunday
-   admin notification and the dashboard's "Send a test SMS" control. It
-   accepts the same UK formats as the Team sheet (`07...`, `7...`, `44...`,
-   `+44...`). (The env var name is kept from an earlier WhatsApp version of
-   this app -- it's just "the admin's phone number" now.)
+4. Set `ADMIN_PHONE_NUMBER` -- your own number, to receive the Sunday admin
+   notification and the dashboard's "Send a test SMS" control. It accepts
+   the same UK formats as the Team sheet (`07...`, `7...`, `44...`,
+   `+44...`).
 
 That's it -- messages are sent as plain SMS via the Twilio Messages API
 (`From`/`To`/`Body`), so there's no sandbox to join, no message templates to
@@ -156,7 +155,7 @@ See `.env.example` for the full list with placeholders. Summary:
 | `TWILIO_ACCOUNT_SID` | Twilio account SID |
 | `TWILIO_AUTH_TOKEN` | Twilio auth token |
 | `TWILIO_SMS_FROM_NUMBER` | Twilio SMS sender number |
-| `ADMIN_WHATSAPP_NUMBER` | Your number, to receive the admin notification |
+| `ADMIN_PHONE_NUMBER` | Your number, to receive the admin notification |
 | `CRON_SECRET` | Shared secret that authorises `/api/reminders/run` |
 
 That's the complete list -- there is no database to configure. Never commit
@@ -173,12 +172,12 @@ controls**:
    who would receive that reminder right now (computed from today's date),
    including any phone-number or sheet-matching problems, without sending
    anything.
-3. **Send a test SMS** -- sends a fixed test message to `ADMIN_WHATSAPP_NUMBER`,
+3. **Send a test SMS** -- sends a fixed test message to `ADMIN_PHONE_NUMBER`,
    to check Twilio SMS end-to-end independent of the rota.
 4. **Trigger test Sunday advance** / **Trigger test Friday reminder** --
    sends a real SMS (whole message prefixed `[TEST]`) to whoever the rota
    currently resolves for that reminder. The Sunday one also sends a test
-   admin notification to `ADMIN_WHATSAPP_NUMBER`. These are logged with
+   admin notification to `ADMIN_PHONE_NUMBER`. These are logged with
    `IsTest = TRUE` and **never** block or duplicate the real scheduled
    send/notification.
 5. **Run scheduled check now** -- runs the exact production logic

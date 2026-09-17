@@ -199,7 +199,7 @@ export async function processReminder(params: {
 /**
  * Sends the admin "who's on duty next Sunday" notification via SMS.
  * Deliberately tolerant of missing/invalid admin config
- * (ADMIN_WHATSAPP_NUMBER) -- returns "blocked" rather than throwing, so a
+ * (ADMIN_PHONE_NUMBER) -- returns "blocked" rather than throwing, so a
  * broken admin notification never prevents the team member's own reminder
  * (sent separately, first) from going out.
  *
@@ -216,14 +216,14 @@ export async function sendAdminNotification(params: {
   const { dutyDate, personName, isTest } = params;
   const messageLog = getMessageLogStore();
 
-  const adminNumberRaw = process.env.ADMIN_WHATSAPP_NUMBER;
+  const adminNumberRaw = process.env.ADMIN_PHONE_NUMBER;
   if (!adminNumberRaw) {
     return {
       dutyDate,
       personName,
       isTest,
       status: "blocked",
-      errorMessage: "ADMIN_WHATSAPP_NUMBER is not configured.",
+      errorMessage: "The admin phone number is not configured.",
     };
   }
 
@@ -234,7 +234,7 @@ export async function sendAdminNotification(params: {
       personName,
       isTest,
       status: "blocked",
-      errorMessage: `ADMIN_WHATSAPP_NUMBER is invalid: ${normalizedAdminNumber.error}`,
+      errorMessage: `The configured admin phone number is invalid: ${normalizedAdminNumber.error}`,
     };
   }
 

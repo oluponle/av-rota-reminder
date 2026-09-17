@@ -302,7 +302,7 @@ export default async function DashboardPage() {
           />
           <AdminActionCard
             title="Send a test SMS"
-            description="Sends a fixed test SMS to the configured admin number (ADMIN_WHATSAPP_NUMBER), to verify Twilio SMS end-to-end."
+            description="Sends a fixed test SMS to the configured admin phone number, to verify Twilio SMS end-to-end."
             buttonLabel="Send test"
             action={sendTestSms}
           />
